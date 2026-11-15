@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#173b32"><meta name="description" content="Bản đồ, hồ sơ đất và dự toán đầu tư đất xây nhà.">
+<link rel="manifest" href="manifest.webmanifest"><title>Tính Xây Nhà Pro – Land & Construction</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{--g:#173b32;--g2:#245849;--bg:#f2f6f3;--card:#fff;--line:#dce5df;--muted:#65766d;--soft:#e8f2eb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#1b2922;font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:var(--g);color:#fff;padding:17px 15px 13px}header h1{font-size:20px;margin:0 0 4px}header p{font-size:12px;margin:0;color:#d8e7de}
+nav{display:flex;gap:6px;padding:9px;background:#fff;position:sticky;top:0;z-index:600;border-bottom:1px solid var(--line)}
+nav button{flex:1;padding:10px 3px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--g);font-size:12px;font-weight:700}
+nav button.active{background:var(--g);color:#fff;border-color:var(--g)}
+main{max-width:920px;margin:auto;padding:12px}.tab{display:none}.tab.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px}
+h2{font-size:16px;color:var(--g);margin:0 0 11px}h3{font-size:14px;margin:14px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.field{min-width:0}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input,select{width:100%;min-width:0;padding:10px;border:1px solid #cbd8d0;border-radius:9px;background:#fff;color:#17251e;font:inherit;font-size:16px}
+button{font:inherit;cursor:pointer}.primary,.secondary{border:0;border-radius:10px;padding:11px 13px;font-weight:700;min-height:43px}.primary{background:var(--g);color:#fff}.secondary{background:var(--soft);color:var(--g)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.search{display:flex;gap:7px}.search input{flex:1;min-width:0}.search button{white-space:nowrap}
+#map{height:370px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.hint{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+.line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.line strong{text-align:right;overflow-wrap:anywhere}
+.kpi{background:var(--soft);border-radius:12px;padding:13px;margin-top:12px}.kpi small{display:block;color:var(--muted)}.kpi strong{display:block;color:var(--g);font-size:22px;margin-top:3px}
+.pill{display:inline-block;background:#fff2d5;color:#765313;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.saved-item{border:1px solid var(--line);padding:10px;border-radius:10px;margin-top:8px}.saved-item button{margin-top:7px}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:14px}
+@media(max-width:420px){main{padding:9px}#map{height:330px}.search{flex-wrap:wrap}.search button{width:100%}nav button{font-size:11px}}
+</style>
+</head>
+<body>
+<header><h1>🏡 Tính Xây Nhà Pro</h1><p>LAND & CONSTRUCTION · Bản đồ · Định giá tham khảo · Dự toán đầu tư</p></header>
+<nav>
+<button class="active" data-tab="mapTab">🗺️ Bản đồ</button><button data-tab="dataTab">🗂️ Dữ liệu</button><button data-tab="landTab">💰 Tiền đất</button><button data-tab="buildTab">🏗️ Xây nhà</button><button data-tab="savedTab">📁 Đã lưu</button>
+</nav>
+<main>
+<section id="mapTab" class="tab active">
+ <div class="card">
+  <h2>Tra cứu vị trí toàn quốc</h2>
+  <div class="search"><input id="query" placeholder="Nhập địa chỉ, xã/phường, tỉnh/thành..."><button class="primary" id="search">Tìm</button></div>
+  <div class="row"><button class="secondary" id="gps">◎ Vị trí GPS</button><button class="secondary" id="osm">Bản đồ đường</button><button class="secondary" id="sat">Ảnh vệ tinh</button></div>
+  <div id="map" style="margin-top:10px"></div>
+  <div class="line"><span>Tọa độ</span><strong id="coords">Chưa chọn</strong></div><div class="line"><span>Địa chỉ gần vị trí</span><strong id="addressResult">Chưa có</strong></div>
+  <p class="hint">Chạm bản đồ để ghim điểm và thử tra địa chỉ gần nhất. Ảnh vệ tinh là lớp nền tham khảo, không phải bản đồ địa chính hoặc bằng chứng ranh giới pháp lý.</p>
+ </div>
+ <div class="card">
+  <h2>Thông tin thửa đất</h2>
+  <div class="grid">
+   <div class="field"><label>Số tờ bản đồ</label><input id="sheet" placeholder="Nhập theo sổ/hồ sơ"></div>
+   <div class="field"><label>Số thửa</label><input id="parcel" placeholder="Nhập theo sổ/hồ sơ"></div>
+   <div class="field"><label>Diện tích (m²)</label><input id="parcelArea" type="number" min="0" value="100"></div>
+   <div class="field"><label>Loại đất</label><select id="landUse"><option>Đất ở</option><option>Đất trồng cây lâu năm</option><option>Đất trồng cây hàng năm</option><option>Đất thương mại, dịch vụ</option><option>Đất khác / chưa xác định</option></select></div>
+  </div>
+  <div class="row"><button class="primary" id="saveParcel">Lưu hồ sơ thửa đất</button></div>
+  <p class="hint"><span class="pill">Chưa kết nối địa chính</span> Số tờ, số thửa, loại đất và diện tích hiện do người dùng nhập. Bản này chưa tự đọc được hồ sơ địa chính quốc gia.</p>
+ </div>
+</section>
+<section id="dataTab" class="tab">
+ <div class="card">
+  <h2>Trung tâm dữ liệu đất đai</h2>
+  <p class="hint">V3 ưu tiên nguồn công khai, miễn phí và hợp pháp. Các liên kết dưới đây mở nguồn công bố gốc; app không giả lập dữ liệu địa chính khi nguồn chưa cung cấp dịch vụ tra cứu/API công khai.</p>
+  <div class="line"><span>Nền địa lý quốc gia</span><strong><span class="pill" style="background:#e5f4e9;color:#245849">Nguồn chính thức</span></strong></div>
+  <p class="hint">Tra cứu dữ liệu nền địa lý, bản đồ và dịch vụ dữ liệu không gian địa lý quốc gia.</p>
+  <div class="row"><a class="primary" style="text-decoration:none;display:inline-flex;align-items:center" href="https://dosm.vnsdi.gov.vn/" target="_blank" rel="noopener">Mở Cổng dữ liệu nền địa lý quốc gia ↗</a></div>
+  <div class="line"><span>Dữ liệu đất đai cấp tỉnh</span><strong><span class="pill">Tùy địa phương</span></strong></div>
+  <p class="hint">Nghị định 101/2024/NĐ-CP quy định việc công bố thông tin quy hoạch, bảng giá đất và dữ liệu mở đất đai trên cổng thông tin của cơ quan có thẩm quyền. Mức độ công bố và khả năng tải/tích hợp khác nhau giữa các địa phương.</p>
+  <div class="row"><a class="secondary" style="text-decoration:none;display:inline-flex;align-items:center" href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener">Tra cứu văn bản Chính phủ ↗</a><a class="secondary" style="text-decoration:none;display:inline-flex;align-items:center" href="https://chinhphu.vn/" target="_blank" rel="noopener">Cổng thông tin Chính phủ ↗</a></div>
+  <div class="line"><span>Quy hoạch và bảng giá đất</span><strong><span class="pill">Cần kiểm tra từng tỉnh</span></strong></div>
+  <p class="hint">Mở cổng UBND tỉnh/Sở Nông nghiệp và Môi trường tương ứng để tìm quyết định bảng giá đất, bản đồ quy hoạch và kế hoạch sử dụng đất. Không có một API công khai thống nhất đã được xác nhận cho toàn quốc.</p>
+  <div class="line"><span>Giá giao dịch thị trường</span><strong><span class="pill">Chưa có nguồn mở đầy đủ</span></strong></div>
+  <p class="hint">Giá rao bán không đồng nghĩa giá giao dịch thành công. V3 chỉ ghi nhận giá tham khảo khi có nguồn, ngày cập nhật và trạng thái xác minh.</p>
+ </div>
+ <div class="card">
+  <h2>Phạm vi dữ liệu hiện có</h2>
+  <div class="line"><span>Bản đồ nền và tìm địa chỉ</span><strong>Đang hoạt động</strong></div>
+  <div class="line"><span>GPS và tọa độ</span><strong>Đang hoạt động</strong></div>
+  <div class="line"><span>Bảng giá đất chính thức</span><strong>Tra cứu nguồn ngoài</strong></div>
+  <div class="line"><span>Quy hoạch sử dụng đất</span><strong>Tra cứu nguồn ngoài</strong></div>
+  <div class="line"><span>Hình thể thửa địa chính</span><strong>Chưa kết nối</strong></div>
+  <div class="line"><span>Giá giao dịch đã xác minh</span><strong>Chưa có nguồn mở đồng bộ</strong></div>
+  <p class="hint">Lưu ý: trạng thái “chưa kết nối” không có nghĩa địa phương không có dữ liệu; có thể dữ liệu chưa được công bố dưới dạng máy đọc/API hoặc cần thủ tục khai thác.</p>
+ </div>
+</section>
+<section id="landTab" class="tab">
+ <div class="card">
+  <h2>Máy tính tiền đất</h2>
+  <div class="grid">
+   <div class="field"><label>Diện tích (m²)</label><input id="landArea" type="number" min="0" value="100"></div>
+   <div class="field"><label>Giá đất tham khảo (đ/m²)</label><input id="landPrice" type="number" min="0" value="15000000" step="100000"></div>
+   <div class="field"><label>Thuế, phí, sang tên (đ)</label><input id="fees" type="number" min="0" value="0" step="100000"></div>
+   <div class="field"><label>Chi phí khác (đ)</label><input id="landMisc" type="number" min="0" value="0" step="100000"></div>
+   <div class="field"><label>Nguồn giá</label><select id="priceSource"><option>Người dùng tự nhập</option><option>Bảng giá đất Nhà nước (nhập thủ công)</option><option>Giá rao bán tham khảo (nhập thủ công)</option><option>Giá giao dịch đã xác minh (nhập thủ công)</option></select></div>
+   <div class="field"><label>Ngày cập nhật giá</label><input id="priceDate" type="date"></div>
+  </div>
+  <div class="kpi"><small>Giá trị đất và chi phí mua</small><strong id="landSum">1.500.000.000 ₫</strong></div>
+  <div class="line"><span>Giá trị đất chưa phí</span><strong id="landOnly">1.500.000.000 ₫</strong></div>
+  <p class="hint">Không tự động suy diễn giá giao dịch. Bảng giá Nhà nước, giá rao bán và giá giao dịch là các loại dữ liệu khác nhau; phải ghi rõ nguồn, thời điểm và độ tin cậy.</p>
+ </div>
+</section>
+<section id="buildTab" class="tab">
+ <div class="card">
+  <h2>Dự toán xây dựng</h2>
+  <div class="grid">
+   <div class="field"><label>Chiều dài (m)</label><input id="length" type="number" min="0" value="20" step=".1"></div><div class="field"><label>Chiều rộng (m)</label><input id="width" type="number" min="0" value="5" step=".1"></div>
+   <div class="field"><label>Số tầng</label><input id="floors" type="number" min="1" max="30" value="2"></div><div class="field"><label>Hệ số mái</label><select id="roofFactor"><option value="1">Mái bằng (1,0)</option><option value="1.2">Mái Nhật (1,2)</option><option value="1.3" selected>Mái Thái (1,3)</option><option value="1.5">Mái dốc khác (1,5)</option></select></div>
+   <div class="field"><label>Móng (đ/m²)</label><input id="foundationRate" type="number" min="0" value="1200000"></div><div class="field"><label>Xây thô (đ/m² sàn)</label><input id="roughRate" type="number" min="0" value="3500000"></div>
+   <div class="field"><label>Hoàn thiện (đ/m² sàn)</label><input id="finishRate" type="number" min="0" value="2500000"></div><div class="field"><label>Mái (đ/m² mái)</label><input id="roofRate" type="number" min="0" value="1500000"></div>
+   <div class="field"><label>Nội thất (đ/m² sàn)</label><input id="interiorRate" type="number" min="0" value="1500000"></div><div class="field"><label>Phát sinh (đ)</label><input id="buildExtra" type="number" min="0" value="0"></div>
+  </div>
+  <h3>Chi tiết dự toán</h3>
+  <div class="line"><span>Diện tích một sàn</span><strong id="oneFloor">100 m²</strong></div><div class="line"><span>Tổng diện tích sàn</span><strong id="floorArea">200 m²</strong></div><div class="line"><span>Diện tích mái quy đổi</span><strong id="roofArea">130 m²</strong></div>
+  <div class="line"><span>Móng</span><strong id="foundationCost">120.000.000 ₫</strong></div><div class="line"><span>Xây thô</span><strong id="roughCost">700.000.000 ₫</strong></div><div class="line"><span>Hoàn thiện</span><strong id="finishCost">500.000.000 ₫</strong></div><div class="line"><span>Mái</span><strong id="roofCost">195.000.000 ₫</strong></div><div class="line"><span>Nội thất + phát sinh</span><strong id="interiorCost">300.000.000 ₫</strong></div>
+  <div class="kpi"><small>Tổng chi phí xây nhà</small><strong id="buildSum">1.815.000.000 ₫</strong></div>
+  <div class="kpi"><small>TỔNG VỐN ĐẤT + NHÀ</small><strong id="grandSum">3.315.000.000 ₫</strong></div>
+  <div class="row"><button class="primary" id="copy">Sao chép dự toán</button></div><p class="hint" id="copyMsg"></p>
+ </div>
+</section>
+<section id="savedTab" class="tab">
+ <div class="card"><h2>Hồ sơ đất đã lưu trên thiết bị</h2><div id="savedList"><p class="hint">Chưa có hồ sơ được lưu.</p></div><p class="hint">Hồ sơ lưu trong trình duyệt trên thiết bị hiện tại (localStorage), chưa đồng bộ giữa nhiều điện thoại.</p></div>
+</section>
+</main>
+<footer>Bản MVP v3 · © OpenStreetMap contributors · Dịch vụ tìm địa chỉ Nominatim · Giá và hồ sơ đất cần xác minh độc lập.</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const $=id=>document.getElementById(id), n=id=>Math.max(0,Number($(id).value)||0), money=x=>Math.round(x).toLocaleString('vi-VN')+' ₫';
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));if(b.dataset.tab==='mapTab')setTimeout(()=>map.invalidateSize(),120)}));
+const map=L.map('map').setView([16.2,106.2],6);
+const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+const imagery=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'});
+$('osm').onclick=()=>{if(map.hasLayer(imagery))map.removeLayer(imagery);if(!map.hasLayer(streets))streets.addTo(map)};
+$('sat').onclick=()=>{if(map.hasLayer(streets))map.removeLayer(streets);if(!map.hasLayer(imagery))imagery.addTo(map)};
+let pin=null,latlng=null,reverseTimer=null;
+async function choose(lat,lon){latlng={lat,lon};if(pin)map.removeLayer(pin);pin=L.marker([lat,lon]).addTo(map);$('coords').textContent=lat.toFixed(6)+', '+lon.toFixed(6);$('addressResult').textContent='Đang tra địa chỉ...';try{const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon,{headers:{'Accept-Language':'vi'}});if(!r.ok)throw Error();const d=await r.json();$('addressResult').textContent=d.display_name||'Không có kết quả'}catch(e){$('addressResult').textContent='Không tra được địa chỉ; vẫn lưu được tọa độ.'}}
+map.on('click',e=>choose(e.latlng.lat,e.latlng.lng));
+$('search').onclick=async()=>{let q=$('query').value.trim();if(!q)return alert('Nhập địa chỉ trước khi tìm.');$('search').disabled=true;$('search').textContent='Đang tìm';try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q),{headers:{'Accept-Language':'vi'}});if(!r.ok)throw Error('Dịch vụ tìm kiếm tạm thời không phản hồi');const a=await r.json();if(!a.length)throw Error('Không tìm thấy địa chỉ');map.setView([+a[0].lat,+a[0].lon],16);await choose(+a[0].lat,+a[0].lon)}catch(e){alert(e.message)}finally{$('search').disabled=false;$('search').textContent='Tìm'}};
+$('query').onkeydown=e=>{if(e.key==='Enter')$('search').click()};
+$('gps').onclick=()=>{if(!navigator.geolocation)return alert('Thiết bị không hỗ trợ GPS trong trình duyệt.');navigator.geolocation.getCurrentPosition(async p=>{map.setView([p.coords.latitude,p.coords.longitude],17);await choose(p.coords.latitude,p.coords.longitude)},()=>alert('Không lấy được vị trí. Hãy cấp quyền vị trí và mở app qua HTTPS.'),{enableHighAccuracy:true,timeout:12000})};
+function calc(){let land=n('landArea')*n('landPrice'),sum=land+n('fees')+n('landMisc');$('landOnly').textContent=money(land);$('landSum').textContent=money(sum);let a=n('length')*n('width'),f=Math.max(1,Math.floor(n('floors'))),fa=a*f,ra=a*n('roofFactor'),foundation=a*n('foundationRate'),rough=fa*n('roughRate'),finish=fa*n('finishRate'),roof=ra*n('roofRate'),interior=fa*n('interiorRate')+n('buildExtra'),build=foundation+rough+finish+roof+interior;[['oneFloor',a.toFixed(2)+' m²'],['floorArea',fa.toFixed(2)+' m²'],['roofArea',ra.toFixed(2)+' m²'],['foundationCost',money(foundation)],['roughCost',money(rough)],['finishCost',money(finish)],['roofCost',money(roof)],['interiorCost',money(interior)],['buildSum',money(build)],['grandSum',money(sum+build)]].forEach(([id,v])=>$(id).textContent=v)}
+document.querySelectorAll('input,select').forEach(x=>x.addEventListener('input',calc));
+function saved(){let arr=[];try{arr=JSON.parse(localStorage.getItem('landRecords')||'[]')}catch(e){}$('savedList').innerHTML='';if(!arr.length){$('savedList').innerHTML='<p class="hint">Chưa có hồ sơ được lưu.</p>';return}arr.forEach((r,i)=>{let d=document.createElement('div');d.className='saved-item';let title=document.createElement('strong');title.textContent=r.title;let detail=document.createElement('div');detail.className='hint';detail.textContent=r.detail;let del=document.createElement('button');del.className='secondary';del.textContent='Xóa hồ sơ';del.onclick=()=>{arr.splice(i,1);localStorage.setItem('landRecords',JSON.stringify(arr));saved()};d.append(title,detail,del);$('savedList').append(d)})}
+$('saveParcel').onclick=()=>{let rec={title:($('addressResult').textContent!=='Chưa có'&&$('addressResult').textContent)||'Thửa đất chưa đặt địa chỉ',detail:'Tờ '+($('sheet').value||'—')+' · Thửa '+($('parcel').value||'—')+' · '+n('parcelArea')+' m² · '+$('landUse').value+' · '+($('coords').textContent),};let arr=[];try{arr=JSON.parse(localStorage.getItem('landRecords')||'[]')}catch(e){}arr.unshift(rec);localStorage.setItem('landRecords',JSON.stringify(arr.slice(0,100)));saved();alert('Đã lưu hồ sơ trên thiết bị.');};
+$('copy').onclick=async()=>{let t='DỰ TOÁN ĐẤT & XÂY NHÀ\\nTiền đất + phí: '+$('landSum').textContent+'\\nChi phí xây nhà: '+$('buildSum').textContent+'\\nTỔNG VỐN: '+$('grandSum').textContent+'\\nGiá đất: '+$('priceSource').value+' · ngày '+$('priceDate').value;try{await navigator.clipboard.writeText(t);$('copyMsg').textContent='Đã sao chép.'}catch(e){$('copyMsg').textContent=t}};
+calc();saved();
+if('serviceWorker'in navigator&&location.protocol==='https:')addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body></html>
